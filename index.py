@@ -13,7 +13,7 @@ import OBD
 
 
 
-# obd.logger.setLevel(obd.logging.DEBUG)
+OBD.logger.setLevel(OBD.logging.DEBUG)
 
 OBD.OBD('/dev/rfcomm1')
 

@@ -1,4 +1,4 @@
-# import serial
+import serial
 import time
 import binascii
 import logging
@@ -20,8 +20,8 @@ class OBD():
 			self.__error(e)
 			return
 
-		if not self.setar_taxa_transmissao():
-			self.__error("Failed to set baudrate")
+		if not self.__setar_taxa_transmissao():
+			self.__error("Falha ao setar taxa de transmissão")
 			return
 
 		try:
@@ -58,7 +58,7 @@ class OBD():
 		mensagem = self.__enviar(cmd)
 		return cmd(mensagem) # compute a response object
 
-	def setar_taxa_transmissao(self):
+	def __setar_taxa_transmissao(self):
 		for taxa in self.__TAXAS:
 			self.__conexao.baudrate = taxa
 			self.__conexao.flushInput()
