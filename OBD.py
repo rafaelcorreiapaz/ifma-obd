@@ -44,6 +44,7 @@ class OBD():
 
 		for i in range(len(pids_de_verificacao)):
 			retorno = self.executar_comando(pids_de_verificacao[i])
+			logger.info("Retorno do pid %s: %s" % (pids_de_verificacao[i], retorno))
 			retorno_binario = bin(int(retorno, 16))[2:]
 
 			for k in range(len(retorno_binario)):
