@@ -1,17 +1,18 @@
-import serial
+# import serial
 import time
+import binascii
 import logging
 
 logger = logging.getLogger(__name__)
 
 class OBD():
 
-	TAXAS = [38400, 9600, 230400, 115200, 57600, 19200]
+	__TAXAS = [38400, 9600, 230400, 115200, 57600, 19200]
+	__pids_suportados = []
 
 	def __init__(self, porta):
 		try:
-			#self.__conexao = serial.Serial(porta, parity = serial.PARITY_NONE, stopbits = 1, bytesize = 8, timeout = 10)
-			self.__conexao = None
+			self.__conexao = serial.Serial(porta, parity = serial.PARITY_NONE, stopbits = 1, bytesize = 8, timeout = 10)
 		except serial.SerialException as e:
 			self.__error(e)
 			return
@@ -24,81 +25,41 @@ class OBD():
 			return
 
 		try:
-			self.__send(b"ATZ", delay=1) # wait 1 second for ELM to initialize
+			self.__enviar(b"ATZ", delay=1) # wait 1 second for ELM to initialize
 			# return data can be junk, so don't bother checking
 		except serial.SerialException as e:
 			self.__error(e)
 			return
 
-		r = self.__send(b"ATE0")
+		r = self.__enviar(b"ATE0")
 		if not self.__isok(r, expectEcho=True):
 			self.__error("ATE0 did not return 'OK'")
 			return
 
-		r = self.__send(b"ATH1")
-		if not self.__isok(r):
-			self.__error("ATH1 did not return 'OK', or echoing is still ON")
-			return
+		self.__verificar_comandos_suportados()
 
-		r = self.__send(b"ATL0")
-		if not self.__isok(r):
-			self.__error("ATL0 did not return 'OK'")
-			return
-
-		# -------------- try the ELM's auto protocol mode --------------
-		r = self.__send(b"ATSP0")
-
-		# -------------- 0100 (first command, SEARCH protocols) --------------
-		r0100 = self.__send(b"0100")
-
-		# ------------------- ATDPN (list protocol number) -------------------
-		r = self.__send(b"ATDPN")
-		if len(r) != 1:
-			logger.error("Failed to retrieve current protocol")
-			return False
-
-		self.__load_commands()
-
-	def __load_commands(self):
+	def __verificar_comandos_suportados(self):
 		logger.info("querying for supported commands")
-		pid_getters = commands.pid_getters()
-		for get in pid_getters:
-			if not self.test_cmd(get, warn=False):
-				continue
+		pids_de_verificacao = [b'00', b'20', b'40']
 
-			response = self.executar_query(self, get)
-			if response.is_null():
-				logger.info("No valid data for PID listing command: %s" % get)
-				continue
+		for i in range(len(pids_de_verificacao)):
+			retorno = self.executar_comando(pids_de_verificacao[i])
+			retorno_binario = bin(int(retorno, 16))[2:]
 
-			for i, bit in enumerate(response.value):
-				if bit:
+			for k in range(len(retorno_binario)):
+				if retorno_binario[k] == '1':
+					pid_suportado = hex(k + 1 + int(pids_de_verificacao[i]))
+					self.__pids_suportados.append(pid_suportado)
 
-					mode = get.mode
-					pid  = get.pid + i + 1
+		logger.info("finished querying with %d commands supported" % len(self.__pids_suportados))
 
-					if commands.has_pid(mode, pid):
-						self.supported_commands.add(commands[mode][pid])
-
-					# set support for mode 2 commands
-					if mode == 1 and commands.has_pid(2, pid):
-						self.supported_commands.add(commands[2][pid])
-
-		logger.info("finished querying with %d commands supported" % len(self.supported_commands))
-
-
-	def executar_query(self, cmd, force = False):
+	def executar_comando(self, cmd, force = False):
 		logger.info("Sending command: %s" % str(cmd))
-		messages = self.__send(cmd)
-
-		if not messages:
-			logger.info("No valid OBD Messages returned")
-			return OBDResponse()
-
-		return cmd(messages) # compute a response object
+		mensagem = self.__enviar(cmd)
+		return cmd(mensagem) # compute a response object
 
 	def setar_taxa_transmissao(self):
-		for taxa in self.TAXAS:
+		for taxa in self.__TAXAS:
 			self.__conexao.baudrate = taxa
 			self.__conexao.flushInput()
 			self.__conexao.flushOutput()
@@ -112,15 +73,15 @@ class OBD():
 
 		return True
 
-	def __send(self, cmd, delay = None):
-		self.__write(cmd)
+	def __enviar(self, cmd, delay = None):
+		self.__escrever(cmd)
 
 		if delay is not None:
 			time.sleep(delay)
 
-		return self.__read()
+		return self.__ler()
 
-	def __write(self, cmd):
+	def __escrever(self, cmd):
 		if self.__conexao:
 			cmd += b"\r\n"
 			logger.debug("write: " + repr(cmd))
@@ -128,11 +89,11 @@ class OBD():
 			self.__conexao.write(cmd)
 			self.__conexao.flush()
 		else:
-			logger.info("cannot perform __write() when unconnected")
+			logger.info("cannot perform __escrever() when unconnected")
 
-	def __read(self):
+	def __ler(self):
 		if not self.__conexao:
-			logger.info("cannot perform __read() when unconnected")
+			logger.info("cannot perform __ler() when unconnected")
 			return []
 
 		buffer = bytearray()
