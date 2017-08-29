@@ -33,12 +33,14 @@ for k in comandos.comandos:
 	C = retorno[4:6]
 	D = retorno[6:8]
 
-	# if comando != None and comando['sistema_numerico'] == 'dec':
-		# print(comando['descricao'])
-		# for conversor in comando['conversor']:
-			# print(sympy.sympify(conversor).subs(dict(A=int(A, 16), B=int(B, 16), C=int(C, 16), D=int(D, 16))))
-	if comando != None and comando['sistema_numerico'] == 'bin':
+	if comando != None and comando['sistema_numerico'] == 'dec':
+		print(comando['descricao'], end=': ')
+		for i in range(len(comando['conversor'])):
+			print(eval(str(sympy.sympify(comando['conversor'][i]).subs(dict(A=int(A, 16), B=int(B, 16), C=int(C, 16), D=int(D, 16))))), end=', ')
+			# print(eval(str(sympy.sympify(comando['conversor'][i]).subs(dict(A=int(A, 16), B=int(B, 16), C=int(C, 16), D=int(D, 16))))) + ' ' + comando['unidade'][i], end=', ')
+		print()
+	elif comando != None and comando['sistema_numerico'] == 'bin':
 		retorno_binario = bin(int(retorno, 16))[2:]
-		print(retorno_binario)
-		for i in range(comando['bytes'])
+		# print(retorno_binario)
+		# for i in range(comando['bytes'])
 
