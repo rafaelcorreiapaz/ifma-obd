@@ -2,6 +2,7 @@ import serial
 import time
 import binascii
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -9,8 +10,11 @@ class OBD():
 
 	__TAXAS = [38400, 9600, 230400, 115200, 57600, 19200]
 	__pids_suportados = []
+	ELM_PROMPT = b'>'
 
 	def __init__(self, porta):
+		self.__conexao = None
+
 		try:
 			self.__conexao = serial.Serial(porta, parity = serial.PARITY_NONE, stopbits = 1, bytesize = 8, timeout = 10)
 		except serial.SerialException as e:
@@ -35,15 +39,17 @@ class OBD():
 		if not self.__isok(r, expectEcho=True):
 			self.__error("ATE0 did not return 'OK'")
 			return
+		 self.__verificar_comandos_suportados()
 
-		self.__verificar_comandos_suportados()
 
 	def __verificar_comandos_suportados(self):
 		logger.info("querying for supported commands")
-		pids_de_verificacao = [b'00', b'20', b'40']
+		pids_de_verificacao = [b'0100', b'0120', b'0140']
 
 		for i in range(len(pids_de_verificacao)):
 			retorno = self.executar_comando(pids_de_verificacao[i])
+			print(retorno)
+			continue
 			logger.info("Retorno do pid %s: %s" % (pids_de_verificacao[i], retorno))
 			retorno_binario = bin(int(retorno, 16))[2:]
 
@@ -54,10 +60,14 @@ class OBD():
 
 		logger.info("finished querying with %d commands supported" % len(self.__pids_suportados))
 
+	def formatar_retorno(self, cmd, retorno):
+		retorno = retorno[0].split(" ")
+		print(retorno)
+
 	def executar_comando(self, cmd, force = False):
 		logger.info("Sending command: %s" % str(cmd))
-		mensagem = self.__enviar(cmd)
-		return cmd(mensagem) # compute a response object
+		retorno = self.__enviar(cmd)
+		return formatar_retorno(mensagem) # compute a response object
 
 	def __setar_taxa_transmissao(self):
 		for taxa in self.__TAXAS:
@@ -91,6 +101,22 @@ class OBD():
 			self.__conexao.flush()
 		else:
 			logger.info("cannot perform __escrever() when unconnected")
+
+	def __isok(self, lines, expectEcho=False):
+		if not lines:
+			return False
+		if expectEcho:
+			# don't test for the echo itself
+			# allow the adapter to already have echo disabled
+			return self.__has_message(lines, 'OK')
+		else:
+			return len(lines) == 1 and lines[0] == 'OK'
+
+	def __has_message(self, lines, text):
+		for line in lines:
+			if text in line:
+				return True
+		return False
 
 	def __ler(self):
 		if not self.__conexao:

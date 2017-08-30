@@ -13,13 +13,18 @@ import comandos
 import sympy
 
 
+# ['41 00 BE 1F A8 13']
+# ['41 20 90 05 B0 15']
+# ['41 40 7A DC 80 01']
+
+
 OBD.logger.setLevel(OBD.logging.DEBUG)
 
-# OBD.OBD('/dev/rfcomm1')
-
-
+obd = OBD.OBD('/dev/rfcomm0')
+obd.formatar_retorno('00', ['41 00 BE 1F A8 13'])
 # print(comandos.comandos)
 
+'''
 A = 2
 B = 3
 C = 4
@@ -36,11 +41,11 @@ for k in comandos.comandos:
 	if comando != None and comando['sistema_numerico'] == 'dec':
 		print(comando['descricao'], end=': ')
 		for i in range(len(comando['conversor'])):
-			print(eval(str(sympy.sympify(comando['conversor'][i]).subs(dict(A=int(A, 16), B=int(B, 16), C=int(C, 16), D=int(D, 16))))), end=', ')
-			# print(eval(str(sympy.sympify(comando['conversor'][i]).subs(dict(A=int(A, 16), B=int(B, 16), C=int(C, 16), D=int(D, 16))))) + ' ' + comando['unidade'][i], end=', ')
+			print(eval(str(sympy.sympify(comando['conversor'][i]).subs(dict(A=int(A, 16), B=int(B, 16), C=int(C, 16), D=int(D, 16))))), end=' ')
+			print(comando['unidade'][i], end=', ')
 		print()
 	elif comando != None and comando['sistema_numerico'] == 'bin':
 		retorno_binario = bin(int(retorno, 16))[2:]
 		# print(retorno_binario)
 		# for i in range(comando['bytes'])
-
+'''
