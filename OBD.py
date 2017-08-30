@@ -1,10 +1,13 @@
-import serial
+# import serial
 import time
 import binascii
 import logging
 import re
 
 logger = logging.getLogger(__name__)
+
+def hexToString(hexadecimal):
+	return str(hex(hexadecimal))[2:].zfill(2)
 
 class OBD():
 
@@ -15,59 +18,69 @@ class OBD():
 	def __init__(self, porta):
 		self.__conexao = None
 
-		try:
-			self.__conexao = serial.Serial(porta, parity = serial.PARITY_NONE, stopbits = 1, bytesize = 8, timeout = 10)
-		except serial.SerialException as e:
-			self.__error(e)
-			return
-		except OSError as e:
-			self.__error(e)
-			return
+		if True == False:
+			try:
+				self.__conexao = serial.Serial(porta, parity = serial.PARITY_NONE, stopbits = 1, bytesize = 8, timeout = 10)
+			except serial.SerialException as e:
+				self.__error(e)
+				return
+			except OSError as e:
+				self.__error(e)
+				return
 
-		if not self.__setar_taxa_transmissao():
-			self.__error("Falha ao setar taxa de transmissão")
-			return
+			if not self.__setar_taxa_transmissao():
+				self.__error("Falha ao setar taxa de transmissão")
+				return
 
-		try:
-			self.__enviar(b"ATZ", delay=1) # wait 1 second for ELM to initialize
-			# return data can be junk, so don't bother checking
-		except serial.SerialException as e:
-			self.__error(e)
-			return
+			try:
+				self.__enviar(b"ATZ", delay=1) # wait 1 second for ELM to initialize
+				# return data can be junk, so don't bother checking
+			except serial.SerialException as e:
+				self.__error(e)
+				return
 
-		r = self.__enviar(b"ATE0")
-		if not self.__isok(r, expectEcho=True):
-			self.__error("ATE0 did not return 'OK'")
-			return
-		 self.__verificar_comandos_suportados()
+			r = self.__enviar(b"ATE0")
+			if not self.__isok(r, expectEcho=True):
+				self.__error("ATE0 did not return 'OK'")
+				return
+
+		self.__verificar_comandos_suportados()
 
 
 	def __verificar_comandos_suportados(self):
 		logger.info("querying for supported commands")
-		pids_de_verificacao = [b'0100', b'0120', b'0140']
+		pids_de_verificacao = [0x00, 0x20, 0x40]
+
+		retornos = [['41 00 BE 1F A8 13'],['41 20 90 05 B0 15'],['41 40 7A DC 80 01']]
 
 		for i in range(len(pids_de_verificacao)):
-			retorno = self.executar_comando(pids_de_verificacao[i])
-			print(retorno)
-			continue
-			logger.info("Retorno do pid %s: %s" % (pids_de_verificacao[i], retorno))
-			retorno_binario = bin(int(retorno, 16))[2:]
+			pid_de_verificacao = hexToString(pids_de_verificacao[i])
+			retorno = self.__formatar_retorno(pid_de_verificacao, retornos[i])
+			# retorno = self.executar_comando(pid_de_verificacao)
+			logger.info("Retorno do pid %s: %s" % (pid_de_verificacao, ''.join(retorno)))
+
+			retorno_binario = ''
+			for j in range(len(retorno)):
+				retorno_binario = retorno_binario + bin(int(retorno[j], 16))[2:].zfill(8)
 
 			for k in range(len(retorno_binario)):
 				if retorno_binario[k] == '1':
 					pid_suportado = hex(k + 1 + int(pids_de_verificacao[i]))
 					self.__pids_suportados.append(pid_suportado)
 
+		print(self.__pids_suportados)
+
 		logger.info("finished querying with %d commands supported" % len(self.__pids_suportados))
 
-	def formatar_retorno(self, cmd, retorno):
+	def __formatar_retorno(self, cmd, retorno):
 		retorno = retorno[0].split(" ")
-		print(retorno)
+		if retorno[0] == '41' and retorno[1] == cmd:
+			return retorno[2:]
 
 	def executar_comando(self, cmd, force = False):
 		logger.info("Sending command: %s" % str(cmd))
 		retorno = self.__enviar(cmd)
-		return formatar_retorno(mensagem) # compute a response object
+		return self.__formatar_retorno(mensagem) # compute a response object
 
 	def __setar_taxa_transmissao(self):
 		for taxa in self.__TAXAS:

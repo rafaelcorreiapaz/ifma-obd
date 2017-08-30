@@ -21,7 +21,6 @@ import sympy
 OBD.logger.setLevel(OBD.logging.DEBUG)
 
 obd = OBD.OBD('/dev/rfcomm0')
-obd.formatar_retorno('00', ['41 00 BE 1F A8 13'])
 # print(comandos.comandos)
 
 '''
