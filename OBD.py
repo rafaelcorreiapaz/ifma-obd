@@ -1,4 +1,4 @@
-# import serial
+import serial
 import time
 import binascii
 import logging
@@ -7,45 +7,48 @@ import re
 logger = logging.getLogger(__name__)
 
 def hexToString(hexadecimal):
-	return str(hex(hexadecimal))[2:].zfill(2)
+	return str(hex(hexadecimal))[2:].zfill(2).upper()
 
 class OBD():
 
 	__TAXAS = [38400, 9600, 230400, 115200, 57600, 19200]
 	__pids_suportados = []
+	__modo = 0x01
+
 	ELM_PROMPT = b'>'
 
 	def __init__(self, porta):
 		self.__conexao = None
 
-		if True == False:
-			try:
-				self.__conexao = serial.Serial(porta, parity = serial.PARITY_NONE, stopbits = 1, bytesize = 8, timeout = 10)
-			except serial.SerialException as e:
-				self.__error(e)
-				return
-			except OSError as e:
-				self.__error(e)
-				return
+		try:
+			self.__conexao = serial.Serial(porta, parity = serial.PARITY_NONE, stopbits = 1, bytesize = 8, timeout = 10)
+		except serial.SerialException as e:
+			self.__error(e)
+			return
+		except OSError as e:
+			self.__error(e)
+			return
 
-			if not self.__setar_taxa_transmissao():
-				self.__error("Falha ao setar taxa de transmissão")
-				return
+		if not self.__setar_taxa_transmissao():
+			self.__error("Falha ao setar taxa de transmissão")
+			return
 
-			try:
-				self.__enviar(b"ATZ", delay=1) # wait 1 second for ELM to initialize
-				# return data can be junk, so don't bother checking
-			except serial.SerialException as e:
-				self.__error(e)
-				return
+		try:
+			self.__enviar(b"ATZ", delay=1) # wait 1 second for ELM to initialize
+			# return data can be junk, so don't bother checking
+		except serial.SerialException as e:
+			self.__error(e)
+			return
 
-			r = self.__enviar(b"ATE0")
-			if not self.__isok(r, expectEcho=True):
-				self.__error("ATE0 did not return 'OK'")
-				return
+		r = self.__enviar(b"ATE0")
+		if not self.__isok(r, expectEcho=True):
+			self.__error("ATE0 did not return 'OK'")
+			return
 
-		self.__verificar_comandos_suportados()
+		# self.__verificar_comandos_suportados()
 
+	def retornar_codigos_de_erro(self):
+		return self.executar_comando(b'03')
 
 	def __verificar_comandos_suportados(self):
 		logger.info("querying for supported commands")
@@ -65,22 +68,25 @@ class OBD():
 
 			for k in range(len(retorno_binario)):
 				if retorno_binario[k] == '1':
-					pid_suportado = hex(k + 1 + int(pids_de_verificacao[i]))
-					self.__pids_suportados.append(pid_suportado)
-
-		print(self.__pids_suportados)
+					# pid_suportado = hex()
+					self.__pids_suportados.append(hexToString(k + 1 + int(pids_de_verificacao[i])))
 
 		logger.info("finished querying with %d commands supported" % len(self.__pids_suportados))
 
+	def retornar_pids_suportados(self):
+		return self.__pids_suportados
+
 	def __formatar_retorno(self, cmd, retorno):
-		retorno = retorno[0].split(" ")
-		if retorno[0] == '41' and retorno[1] == cmd:
-			return retorno[2:]
+		# retorno = retorno[0].split(" ")
+		# if retorno[0] == '41':
+			# return retorno[2:]
+
+		return retorno
 
 	def executar_comando(self, cmd, force = False):
 		logger.info("Sending command: %s" % str(cmd))
 		retorno = self.__enviar(cmd)
-		return self.__formatar_retorno(mensagem) # compute a response object
+		return self.__formatar_retorno(str(cmd[2:]), retorno) # compute a response object
 
 	def __setar_taxa_transmissao(self):
 		for taxa in self.__TAXAS:
@@ -88,7 +94,7 @@ class OBD():
 			self.__conexao.flushInput()
 			self.__conexao.flushOutput()
 
-			self.__conexao.write(b"\x7F\x7F\r\n")
+			self.__conexao.write(b'\x7F\x7F\r\n')
 			self.__conexao.flush()
 			response = self.__conexao.read(1024)
 
